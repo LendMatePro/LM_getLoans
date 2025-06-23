@@ -2,6 +2,8 @@ import { QueryCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { ddbClient } from "./ddbClient.js";
 
+const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME;
+
 export const handler = async (event) => {
     const respond = (statusCode, message) => ({
         statusCode,
@@ -21,7 +23,7 @@ export const handler = async (event) => {
         const PK = `LOAN#${dueDay}`;
 
         const command = new QueryCommand({
-            TableName: process.env.DYNAMODB_TABLE_NAME,
+            TableName: TABLE_NAME,
             KeyConditionExpression: "PK = :pk",
             ExpressionAttributeValues: {
                 ":pk": { S: PK }
