@@ -20,22 +20,32 @@ export const handler = async (event) => {
             return respond(400, { message: "Invalid dueDay. Must be between 1 and 28." });
         }
 
-        const PK = `LOAN#${dueDay}`;
+        const loans = await getLoansByDueDay(dueDay);
+        return respond(200, loans);
 
-        const command = new QueryCommand({
-            TableName: TABLE_NAME,
-            KeyConditionExpression: "PK = :pk",
-            ExpressionAttributeValues: {
-                ":pk": { S: PK }
-            },
-            ScanIndexForward: false
-        });
+    } catch (error) {
+        console.error("GetLoan Error:", error);
+        return respond(500, { message: "Failed to retrieve loans", error: error.message });
+    }
+};
 
-        const result = await ddbClient.send(command);
+async function getLoansByDueDay(dueDay) {
+    const command = new QueryCommand({
+        TableName: TABLE_NAME,
+        KeyConditionExpression: "PK = :pk",
+        ExpressionAttributeValues: {
+            ":pk": { S: "LOAN" }
+        },
+        ScanIndexForward: false
+    });
 
-        const loans = result.Items?.map(item => {
-            const { loanId, customer, info } = unmarshall(item);
+    const result = await ddbClient.send(command);
+    const items = result.Items?.map(unmarshall) ?? [];
 
+    return items
+        .filter(item => item?.dueDay === dueDay)
+        .map(item => {
+            const { loanId, dueDay, amount, rate, interest, notes, customer } = item;
             return {
                 customer: {
                     customerId: customer.customerId,
@@ -46,19 +56,12 @@ export const handler = async (event) => {
                 },
                 loan: {
                     loanId,
-                    dueDay: info.dueDay,
-                    amount: info.amount,
-                    interest: info.interest,
-                    rate: info.rate,
-                    notes: info.notes
+                    dueDay,
+                    amount,
+                    rate,
+                    interest,
+                    notes
                 }
             };
-        }) ?? [];
-
-        return respond(200, loans);
-
-    } catch (error) {
-        console.error("GetLoan Error:", error);
-        return respond(500, { message: "Failed to retrieve loans", error: error.message });
-    }
-};
+        });
+}
